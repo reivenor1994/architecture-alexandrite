@@ -1,0 +1,53 @@
+@startuml
+actor Operator
+participant "MES UI" as UI
+participant "MES API" as API
+participant Cache
+database "MES DB" as DB
+
+' Чтение списка заказов
+Operator -> UI: Запрос списка заказов
+activate UI
+UI -> API: GET /orders
+activate API
+API -> Cache: Проверка наличия данных (get(ordersKey))
+activate Cache
+alt Данные в кеше
+    Cache --> API: Возврат кешированных данных
+    deactivate Cache
+    API --> UI: Отображение списка
+else Данных нет в кеше
+    Cache --> API: Данных нет
+    deactivate Cache
+    API -> DB: Запрос списка заказов
+    activate DB
+    DB --> API: Возврат данных
+    deactivate DB
+    API -> Cache: Сохранение данных в кеш (put(ordersKey, data))
+    activate Cache
+    Cache --> API: OK
+    deactivate Cache
+    API --> UI: Отображение списка
+end
+deactivate API
+UI --> Operator: Список заказов
+deactivate UI
+
+' Обновление статуса заказа
+Operator -> UI: Изменение статуса заказа
+activate UI
+UI -> API: PUT /orders/{id}/status
+activate API
+API -> DB: Обновление статуса
+activate DB
+DB --> API: Подтверждение
+deactivate DB
+API -> Cache: Инвалидация кеша по ключу (invalidate(ordersKey))
+activate Cache
+Cache --> API: OK
+deactivate Cache
+API --> UI: Подтверждение обновления
+deactivate API
+UI --> Operator: Подтверждение обновления
+deactivate UI
+@enduml
